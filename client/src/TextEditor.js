@@ -42,20 +42,6 @@ export default function TextEditor() {
     },[])
     
     
-    useEffect(()=>{
-        if (socket == null || quill == null) return
-        const handler = (delta)=>{
-            quill.updateContents(delta)
-        }
-        
-        socket.on('receive-changes',handler)
-        
-        return ()=>{
-            // quill.off('text-change',handler)
-            socket.off('receive-changes',handler)
-        }
-    },[socket,quill])
-    
     
     useEffect(()=>{
         if (socket == null || quill == null) return
@@ -68,25 +54,50 @@ export default function TextEditor() {
         };
         socket.on("load-document",handleLoadDocument)
         socket.emit("get-document",documentId)
-
+        
         return () => {
             socket.off('load-document', handleLoadDocument);
         };
     },[socket,quill,documentId])
-
-
+    
+    
     useEffect(()=>{
         if (socket == null || quill == null) return
-
+        
         const interval = setInterval(() => {
-                socket.emit("save-document",quill.getContents())
+            socket.emit("save-document",quill.getContents())
         }, SAVE_INTERVAL_MS);
-
-
+        
+        
         return ()=>{
             clearInterval(interval)
         }
     },[socket,quill])
+    
+
+
+    useEffect(()=>{
+        if (socket == null || quill == null) return
+        const handler = (delta)=>{
+            quill.updateContents(delta.content)
+            quill.setSelection(delta.select)
+        }
+
+        // const handler1 = (delta)=>{
+        //     console.log("receiving-selection",delta)
+        //     quill.setSelection(delta)
+        // }
+        
+        socket.on('receive-changes',handler)
+        // socket.on('receive-changes-selection',handler1)
+        
+        return ()=>{
+            // quill.off('text-change',handler)
+            socket.off('receive-changes',handler)
+            // socket.off('receive-changes-selection',handler1)
+        }
+    },[socket,quill])
+
 
 
 
@@ -95,10 +106,19 @@ export default function TextEditor() {
 
         const handler = (delta,olddelta,source)=>{
             if (source!=="user") return
-            socket.emit("send-changes",delta)
+            let data = {content:delta,select:quill.getSelection()}
+            socket.emit("send-changes",data)
         }
+        
+        // const handler1 = (delta,olddelta,source)=>{
+        //     if (source!=="user") return
+        //     let data = quill.getSelection()
+        //     console.log(delta,"sending selection")
+        //     socket.emit("send-changes-selection",delta)
+        // }
 
         quill.on("text-change",handler)
+        quill.on("selection-change",handler)
         return ()=>{
             socket.off('receive-changes',handler)
         }
