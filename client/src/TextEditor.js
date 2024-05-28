@@ -18,7 +18,7 @@ const TOOLBAR_OPTIONS = [
     ["clean"], 
 ]
 
-const SAVE_INTERVAL_MS = 2000
+const SAVE_INTERVAL_MS = 1000
 
 
 export default function TextEditor() {
@@ -28,9 +28,29 @@ export default function TextEditor() {
     // console.log(documentId)
     const [socket,setSocket] = useState()
     const [quill,setQuill] = useState()
-    
-    
-    
+    const [nameFile, setFileName] = useState("Untitled.txt");
+    const [extFile, setFileExt] = useState("txt");
+    const fileRef = useRef();
+
+
+    const changeFileName = (e) => {
+        const newFileName = e.target.value;
+        // console.log(newFileName)
+        // fileRef.current.value = newFileName
+        const ext = getFileExtension(newFileName);
+        setFileName(newFileName)
+        setFileExt(ext)
+    };
+
+    function getFileExtension(file) {
+        if (typeof file !== 'string') {
+            throw new TypeError('Expected a string');
+        }
+        
+        const parts = file.split('.');
+        return parts.length > 1 ? parts.pop() : ''; // Get the last part after the last dot or return empty string
+    }
+        
 
     useEffect(()=>{
         let s= io("http://localhost:3001")
@@ -47,9 +67,13 @@ export default function TextEditor() {
         if (socket == null || quill == null) return
 
 
+
         const handleLoadDocument = (document) => {
-            console.log('inside load-document');
-            quill.setContents(document);
+            // console.log('inside load-document');
+            // console.log(document)
+            quill.setText(document.content);
+            setFileName(document.fileName)
+            fileRef.current.value = document.fileName;
             quill.enable();
         };
         socket.on("load-document",handleLoadDocument)
@@ -65,7 +89,19 @@ export default function TextEditor() {
         if (socket == null || quill == null) return
         
         const interval = setInterval(() => {
-            socket.emit("save-document",quill.getContents())
+            var delta = quill.getContents();
+
+            // Extract text from Delta
+            var text = delta.reduce(function(prev, curr) {
+            if (typeof curr.insert === 'string') {
+                return prev + curr.insert;
+            } else {
+                return prev;
+            }
+            }, '');
+            let data = {content:text,fileName:fileRef.current.value}
+            // console.log(data)
+            socket.emit("save-document",data)
         }, SAVE_INTERVAL_MS);
         
         
@@ -81,10 +117,12 @@ export default function TextEditor() {
         const handler = (delta)=>{
             quill.updateContents(delta.content)
             quill.setSelection(delta.select)
+            fileRef.current.value = delta.fileName
+            setFileName(delta.fileName)
         }
 
         // const handler1 = (delta)=>{
-        //     console.log("receiving-selection",delta)
+            // console.log("receiving-selection",delta)
         //     quill.setSelection(delta)
         // }
         
@@ -106,14 +144,14 @@ export default function TextEditor() {
 
         const handler = (delta,olddelta,source)=>{
             if (source!=="user") return
-            let data = {content:delta,select:quill.getSelection()}
+            let data = {content:delta,select:quill.getSelection(),fileName:fileRef.current.value}
             socket.emit("send-changes",data)
         }
         
         // const handler1 = (delta,olddelta,source)=>{
         //     if (source!=="user") return
         //     let data = quill.getSelection()
-        //     console.log(delta,"sending selection")
+            // console.log(delta,"sending selection")
         //     socket.emit("send-changes-selection",delta)
         // }
 
@@ -143,8 +181,19 @@ export default function TextEditor() {
 
 
   return (
+    <>
+    <label htmlFor="fileName">Enter Name of the file: </label>
+            <input
+                type="text"
+                ref={fileRef}
+                value={nameFile}
+                onChange={changeFileName}
+                id="fileName"
+                name="fileName"
+            />
     <div id = "container" className="container" ref={wrapperRef}>
     </div>
+    </>
     
   )
 }

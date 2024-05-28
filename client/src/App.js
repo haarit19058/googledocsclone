@@ -16,9 +16,9 @@ function App() {
     <Router>
       <Switch>
         <Route path="/" exact>
-        <Redirect to={`/documents/${uuidv4()}`}></Redirect>
+        <Redirect to={`/documents/${uuidv4()}/Quill`}></Redirect>
         </Route>
-        <Route path="/documents/:id" element = {<TextEditor/>}>
+        <Route path="/documents/:id/Quill" element = {<TextEditor/>}>
         <TextEditor/>
         </Route>
       </Switch>

@@ -26,6 +26,7 @@ io.on("connection",socket =>{
         
         socket.emit("load-document",document.data)
 
+
         socket.on('send-changes',delta=>{
             socket.broadcast.to(documentId).emit("receive-changes",delta)
         })
@@ -37,7 +38,7 @@ io.on("connection",socket =>{
 })
 
 
-const defaultValue = ""
+const defaultValue = {content:"",fileName:"Untitled.txt"}
 
 
 async function findOrCreateDocument(id){
